@@ -24,18 +24,30 @@ RTC_DATA_ATTR int readingsCount = 0;
 RTC_DATA_ATTR int lastDay = -1;
 // ==================== NOTECARD UART FUNCTION ====================
 String notecardCommand(String cmd) {
+    // discards any leftover input buffer so that data from a previous 
+    // command doesn't contaminate this response
     while (Serial1.available()) {
         Serial1.read();
     }
+    // sends the command to the device over serial
     Serial1.println(cmd);
+    // records the current time in milliseconds
     unsigned long start = millis();
     String response = "";
+    // loops for up to 5 seconds waiting for a response
     while (millis() - start < 5000) {
+        // checks whether any bytes have arrived on the serial line before trying to read
         if (Serial1.available()) {
+            // gets one byte from the serial buffer
             char c = Serial1.read();
             response += c;
+            // checks whether a complete JSON object has been received 
             if (c == '}' && response.indexOf('{') >= 0) {
+                // waits 10ms after detecting the closing "}" to give the serial buffer a 
+                // moment to fill with any remaining bytes
                 delay(10);
+                // adds any remaining bytes that arrived during the 10ms delay into 
+                // the response string, ensuring nothing is cut off.
                 while (Serial1.available()) {
                     response += (char)Serial1.read();
                 }
@@ -43,6 +55,7 @@ String notecardCommand(String cmd) {
             }
         }
     }
+    // returns the full response string to the caller
     return response;
 }
 // ==================== PARSE JSON LONG ====================
