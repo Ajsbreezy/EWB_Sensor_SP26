@@ -47,15 +47,23 @@ String notecardCommand(String cmd) {
 }
 // ==================== PARSE JSON LONG ====================
 long parseJsonLong(String json, String key) {
+    // keyIdx contains the index of key in json
     int keyIdx = json.indexOf("\"" + key + "\":");
+    // function returns -1 if key wasn't found in json
     if (keyIdx < 0) return -1;
+    // startIdx contains the index of where the value begins
     int startIdx = keyIdx + key.length() + 3;
     int endIdx = startIdx;
+    // loops through json starting at the beginning of the value and finds 
+    // the end index of the value and assigns it to endIdx
     while (endIdx < json.length()) {
+        // gets character at current position
         char c = json.charAt(endIdx);
+        // breaks if the current character is a delimiter
         if (c == ',' || c == '}' || c == ' ' || c == '\n' || c == '\r') break;
         endIdx++;
     }
+    // converts the string to a number and returns it
     String numStr = json.substring(startIdx, endIdx);
     numStr.trim();
     return numStr.toInt();
