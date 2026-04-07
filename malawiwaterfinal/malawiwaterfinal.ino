@@ -68,9 +68,12 @@ int getDayOfYear(long unixTime) {
 }
 // ==================== LOG READING ====================
 void logReading() {
+    // sonar.ping_cm() returns the distance to an object and returns it in cm
+    // it returns 0 if the object is out of range
     int dist = sonar.ping_cm();
     if (dist == 0) dist = -1;
     Serial.print("Reading #");
+    // readingsCount contains the number of readings done so far 
     Serial.print(readingsCount + 1);
     Serial.print(": ");
     Serial.print(dist);
@@ -81,7 +84,7 @@ void logReading() {
         myFile.println(dist);
         myFile.close();
         readingsCount++;
-        Serial.println("✓ Logged to SD");
+        Serial.println("Logged to SD");
     } else {
         Serial.println("ERROR: SD write failed");
     }
