@@ -88,6 +88,7 @@ int getDayOfYear(long unixTime) {
     return (unixTime / secondsPerDay) % 365;
 }
 // ==================== LOG READING ====================
+RTC_DATA_ATTR int dataArray[24];
 void logReading() {
     // sonar.ping_cm() returns the distance to an object and returns it in cm
     // it returns 0 if the object is out of range
@@ -99,51 +100,51 @@ void logReading() {
     Serial.print(": ");
     Serial.print(dist);
     Serial.println(" cm");
-    myFile = SD.open(SD_FILENAME, FILE_APPEND);
-    if (myFile) {
-        myFile.print("Distance_cm: ");
-        myFile.println(dist);
-        myFile.close();
+    // Store in RTC memory array for one day
+    if (readingsCount < 24) {
+        dataArray[readingsCount] = dist;
         readingsCount++;
-        Serial.println("Logged to SD");
+
+        Serial.println("Stored in RTC memory");
     } else {
-        Serial.println("ERROR: SD write failed");
+        Serial.println("WARNING: dataArray full (24 readings max)");
     }
 }
 // ==================== UPLOAD DATA ====================
 void uploadData() {
     Serial.println("\n=== UPLOADING DAILY DATA ===");
-    myFile = SD.open(SD_FILENAME);
-    if (!myFile) {
-        Serial.println("No data to upload");
-        return;
-    }
+    // myFile = SD.open(SD_FILENAME);
+    // if (!myFile) {
+    //     Serial.println("No data to upload");
+    //     return;
+    // }
     // Build a JSON array string
-    String dataArray = "[";
+    String JSON_data = "[";
     int count = 0;
-    while (myFile.available()) {
-        String line = myFile.readStringUntil('\n');
-        line.trim();
-        if (line.length() == 0) continue;
+    while (count < dataArray.length()) {
+        String val = dataArray[count]
+        // String line = myFile.readStringUntil('\n');
+        // line.trim();
+        // if (line.length() == 0) continue;
         // Remove "Distance_cm: " prefix if present
-        int colonIdx = line.indexOf(':');
-        String valueStr = line;
-        if (colonIdx >= 0) {
-            valueStr = line.substring(colonIdx + 1);
-            valueStr.trim();
-        }
-        dataArray += valueStr + ",";
+        // int colonIdx = line.indexOf(':');
+        // String valueStr = line;
+        // if (colonIdx >= 0) {
+        //     valueStr = line.substring(colonIdx + 1);
+        //     valueStr.trim();
+        // }
+        JSON_data += val + ",";
         count++;
     }
-    myFile.close();
-    if (dataArray.endsWith(",")) {
-        dataArray.remove(dataArray.length() - 1); // remove trailing comma
+    // myFile.close();
+    if (JSON_data.endsWith(",")) {
+        JSON_data.remove(JSON_data.length() - 1); // remove trailing comma
     }
-    dataArray += "]";
+    JSON_data += "]";
     Serial.print("Total readings: ");
     Serial.println(count);
     Serial.println("JSON array prepared:");
-    Serial.println(dataArray);
+    Serial.println(JSON_data);
     // Send to Notecard
     String noteCmd = "{\"req\":\"note.add\",\"file\":\"daily.qo\",\"sync\":true,\"body\":{\"readings\":" +
                      String(count) + ",\"day_data\":" + dataArray + "}}";
@@ -156,10 +157,10 @@ void uploadData() {
         rsp = notecardCommand("{\"req\":\"hub.sync\"}");
         delay(3000);
         // Clear file and counter
-        SD.remove(SD_FILENAME);
+        //SD.remove(SD_FILENAME);
         readingsCount = 0;
-        Serial.println("✓ Upload complete - Check Notehub Events for daily.qo!");
-        Serial.println("✓ File cleared, ready for new day");
+         Serial.println("Upload complete");
+        Serial.println("File cleared, ready for new day");
     } else {
         Serial.println("ERROR: Upload failed");
         Serial.println("Response: " + rsp);
@@ -172,19 +173,19 @@ void setup() {
     Serial.println("\n=== Water Tank Monitor ===");
     Serial.print("Wakeup #");
     Serial.println(readingsCount + 1);
-    // ---------- SD CARD ----------
-    Serial.println("Initializing SD card...");
-    pinMode(SD_CS, OUTPUT);
-    digitalWrite(SD_CS, HIGH);
-    delay(500);
-    SPI.begin(SD_SCK, SD_MISO, SD_MOSI, SD_CS);
-    delay(200);
-    if (!SD.begin(SD_CS, SPI, 400000)) {
-        Serial.println("ERROR: SD init failed");
-        delay(1000);
-        esp_deep_sleep_start(); // Sleep and retry
-    }
-    Serial.println("✓ SD initialized");
+    // // ---------- SD CARD ----------
+    // Serial.println("Initializing SD card...");
+    // pinMode(SD_CS, OUTPUT);
+    // digitalWrite(SD_CS, HIGH);
+    // delay(500);
+    // SPI.begin(SD_SCK, SD_MISO, SD_MOSI, SD_CS);
+    // delay(200);
+    // if (!SD.begin(SD_CS, SPI, 400000)) {
+    //     Serial.println("ERROR: SD init failed");
+    //     delay(1000);
+    //     esp_deep_sleep_start(); // Sleep and retry
+    // }
+    // Serial.println("✓ SD initialized");
     // ---------- NOTECARD ----------
     Serial.println("Initializing Notecard...");
     Serial1.begin(9600, SERIAL_8N1, NOTE_RX, NOTE_TX);
