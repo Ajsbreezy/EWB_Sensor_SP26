@@ -34,13 +34,13 @@
 
 #include <stdio.h>
 #include <string.h>
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
 #include "driver/uart.h"
 #include "esp_sleep.h"
 #include "esp_timer.h"
-#include "driver/i2c_master.h"
+#include "esp_log.h"
 #include "notecard.h"
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
 // PIN DEFINITIONS (should be matched to PCB schematic)
 // I2C to Notecard
 #define NOTE_SDA_PIN   2    // ESP32-C3 GPIO2 -> Notecard SDA
@@ -73,11 +73,15 @@ static esp_err_t notecard_hardware_init(void)
 {
     ESP_LOGI(TAG, "Initializing Notecard hardware...");
 
-    // Configure Notecard for I2C communication using Kconfig defaults
-    notecard_config_t config = NOTECARD_I2C_CONFIG_DEFAULT();
-
-    config.i2c.sda_pin = NOTE_SDA_PIN; // GPIO2
-    config.i2c.scl_pin = NOTE_SCL_PIN; // GPIO3
+    notecard_config_t config = {
+        .interface = NOTE_C_INTERFACE_I2C,
+        .i2c = {
+            .sda_pin   = NOTE_SDA_PIN,
+            .scl_pin   = NOTE_SCL_PIN,
+            .frequency = 100000,
+            .address   = 0x17,
+        },
+    };
 
     // Initialize Notecard
     esp_err_t ret = notecard_init(&config);
@@ -265,7 +269,7 @@ void upload_data() {
         if (syncRsp == NULL) {
             ESP_LOGE(TAG, "Could not sync");
         }
-        if(syncrsp) NoteDeleteResponse(syncrsp);
+        if(syncRsp) NoteDeleteResponse(syncRsp);
 
         ESP_LOGI(TAG, "Note queued successfully");
 
