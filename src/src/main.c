@@ -1,5 +1,6 @@
 // EWB Malawi Water Tank Monitor
-// Michael Chou, Andrew Schretzmayer, Eduardo Hernandez, Nathan Lee, Paul Wang
+// Authors: Michael Chou, Andrew Schretzmayer, Eduardo Hernandez, 
+//          Nathan Lee, Paul Wang
 // Hardware:  Custom PCB with ESP32-C3-WROOM-02, Blues Notecard (I2C),
 //            UART ultrasonic distance sensor (UART), powered by 12.8V LiFePO4 battery
 //            via dual AP64500 buck converters (5V + 3.3V rails)
@@ -63,6 +64,7 @@
 RTC_DATA_ATTR int readings[MAX_READINGS_PER_DAY];
 RTC_DATA_ATTR int readingsCount = 0;
 RTC_DATA_ATTR int lastDay = -1;
+RTC_DATA_ATTR bool hubConfigured = false;
 // SENSOR PROTOCOL
 const uint8_t  HEADER_BYTE = 0xFF;       // sensor frame start byte
 const int ERROR_DISTANCE = -1;         // returned on read failure
@@ -136,7 +138,7 @@ int getCurrentDay() {
             return -1;
         } 
         // get UNIX timestamp
-        long unixTime = (long)JGetNumber(rsp, "time");
+        int64_t unixTime = (int64_t)JGetNumber(rsp, "time");
 
         // free the response memory to prevent memory leaks
         NoteDeleteResponse(rsp);
@@ -176,7 +178,7 @@ int get_distance() {
                     pdMS_TO_TICKS(SENSOR_TIMEOUT_MS)) == 3) {
             
                     // calculate expected sum of first 3 bytes (truncated to 8 bits)
-                    if ((buf[0] + buf[1] + buf[2]) == buf[3]) {
+                    if (((buf[0] + buf[1] + buf[2]) & 0x00FF) == buf[3]) {
                         return (buf[1] << 8) | buf[2];
                     } 
 
@@ -307,8 +309,10 @@ void app_main(void) {
     NoteDeleteResponse(rsp);
 
     // first boot, configure hub
-    if (readingsCount == 0)
+    if (!hubConfigured) {
         notecard_configure_hub();
+        hubConfigured = true;
+    }
 
     // get current day
     int currentDay = getCurrentDay();
